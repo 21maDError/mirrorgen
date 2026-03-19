@@ -3,7 +3,7 @@ mod error;
 
 use attribute::MirrorArgs;
 use error::CollectError;
-use proc_macro::{Ident, TokenStream};
+use proc_macro::TokenStream;
 use quote::quote;
 use std::collections::{HashMap, HashSet};
 use syn::{Error, Fields, ItemStruct, parse_macro_input};
@@ -21,8 +21,12 @@ pub fn derive_mirror(input: TokenStream) -> TokenStream {
         ));
     }
 
-    let fields: Vec<_> = if let Fields::Named(ref fields) = input.fields {
-        fields.named.iter().map(|f| &f.ident).collect()
+    let fields: Vec<_> = if let Fields::Named(fields) = &input.fields {
+        fields
+            .named
+            .iter()
+            .filter_map(|f| f.ident.as_ref())
+            .collect()
     } else {
         Vec::new()
     };
@@ -52,7 +56,7 @@ pub fn derive_mirror(input: TokenStream) -> TokenStream {
 
     if let Some(omit) = &args.omit {
         for item in omit {
-            if !fields.iter().any(|f| f.as_ref() == Some(item)) {
+            if !fields.iter().any(|f| *f == item) {
                 errors.push_error(Error::new_spanned(item, "field not found"))
             } else if omits.contains(item) {
                 errors.push_error(Error::new_spanned(item, "field already omitted"))
@@ -68,14 +72,16 @@ pub fn derive_mirror(input: TokenStream) -> TokenStream {
 
     if let Some(rename) = &args.rename {
         for (from, to) in rename {
-            if !fields.iter().any(|f| f.as_ref() == Some(from)) {
+            if !fields.iter().any(|f| *f == from) {
                 errors.push_error(Error::new_spanned(from, "field not found"))
-            } else if fields.iter().any(|f| f.as_ref() == Some(to)) {
+            } else if fields.iter().any(|f| *f == to) {
                 errors.push_error(Error::new_spanned(to, "field already exists"))
             } else if from_s.contains(from) {
                 errors.push_error(Error::new_spanned(from, "field already renamed"));
             } else if to_s.contains(to) {
                 errors.push_error(Error::new_spanned(to, "field already used to rename"));
+            } else if omits.contains(from) {
+                errors.push_error(Error::new_spanned(from, "field is omitted"));
             } else {
                 renames.insert(from, to);
                 from_s.insert(from);
@@ -88,8 +94,30 @@ pub fn derive_mirror(input: TokenStream) -> TokenStream {
         return error.to_compile_error().into();
     }
 
-    dbg!(omits);
-    dbg!(renames);
+    let dto_name = args.name;
+    let dto_fields = if let Fields::Named(fields) = &input.fields {
+        fields.named.iter().filter_map(|f| {
+            let name = f.ident.as_ref()?;
+            if omits.contains(name) {
+                return None;
+            }
 
-    TokenStream::new()
+            let final_name = renames.get(name).unwrap_or(&name);
+            let ty = &f.ty;
+
+            Some(quote! {
+                pub #final_name: #ty
+            })
+        })
+    } else {
+        return TokenStream::new();
+    };
+
+    quote! {
+        #[derive(Debug, Clone, Copy)]
+        pub struct #dto_name {
+            #(#dto_fields),*
+        }
+    }
+    .into()
 }
