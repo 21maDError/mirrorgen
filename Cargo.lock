@@ -3,19 +3,19 @@
 version = 4
 
 [[package]]
-name = "mirrorgen"
-version = "0.1.0"
-dependencies = [
- "mirrorgen_macros",
-]
-
-[[package]]
-name = "mirrorgen_macros"
+name = "macros"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "mirrorgen"
+version = "0.1.0"
+dependencies = [
+ "macros",
 ]
 
 [[package]]

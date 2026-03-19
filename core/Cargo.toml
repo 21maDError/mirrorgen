@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-mirrorgen_macros = { path = "../mirrorgen_macros" }
+macros = { path = "../macros" }
