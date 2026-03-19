@@ -1,13 +1,12 @@
 use mirrorgen::Mirror;
 
 #[derive(Mirror)]
-#[mirror(name = "Test", omit = [a, b])]
+#[mirror(name = "TestDTO", omit = [a, b], rename = [a => x, b => y])]
+//#[mirror(name = "another", rename = [b => y])]
 struct Test {
     a: i32,
     b: i32,
 }
 
 fn main() {
-    //let test = Test { a: 1, b: 2 };
-    Test::hello();
 }
